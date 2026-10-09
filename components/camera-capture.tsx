@@ -69,7 +69,7 @@ export function CameraCapture({ onPhoto, photoOptions, className }: CameraCaptur
     };
   }, []);
 
-  async function open() {
+  const open = useCallback(async () => {
     const result = await requestCamera({ facing: "environment" });
     if (!aliveRef.current) {
       stopStream(result.stream);
@@ -81,14 +81,13 @@ export function CameraCapture({ onPhoto, photoOptions, className }: CameraCaptur
     }
     setNote("");
     setState({ kind: "on", stream: result.stream, mirrored: isMirrored(result.stream, "environment") });
-  }
+  }, []);
 
   // Opened when the component mounts, which is the moment after the click on "Take photo". Every
   // state change happens inside the promise callback, not in the effect body itself.
   useEffect(() => {
     void open();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- one request per mount; retries go through the button
-  }, []);
+  }, [open]);
 
   // Everything tied to one live stream: showing it, stopping it when the tab is hidden or the
   // camera disappears, and stopping it on the way out.
