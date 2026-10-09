@@ -236,26 +236,23 @@ export function PhotoNotebook() {
     };
   }, [cameraStream]);
 
-  async function takePhoto() {
+  // One capture: the module helper does the work; this only guards the state around it.
+  function captureFromPreview() {
     const video = videoRef.current;
     if (!video || camera.kind !== "on" || capturing) return;
     setCapturing(true);
-    try {
-      const photo = await capturePhoto(video, { maxEdge: 1600, type: "image/jpeg", quality: 0.85 });
-      await queueFromBlob(photo, "camera", "Camera photo", Date.now());
-      // The camera stays on: several photos in a row is the point of the panel.
-      setCameraNote("Photo taken — it is queued below, ready for a caption. Take another or close the camera.");
-    } catch (error) {
-      setCameraNote(error instanceof Error ? error.message : "The photo could not be taken.");
-    } finally {
-      setCapturing(false);
-    }
+    void captureFromCamera(video, (blob, takenAt) => queueFromBlob(blob, "camera", "Camera photo", takenAt)).then(
+      (note) => {
+        setCameraNote(note);
+        setCapturing(false);
+      },
+    );
   }
 
   const saved = photos ?? [];
   const active = activeId === null ? undefined : saved.find((photo) => photo.id === activeId);
 
-  const queueFromBlob = useCallback(async (blob: Blob, source: QueuedItem["source"], name: string, takenAt: number) => {
+  async function queueFromBlob(blob: Blob, source: QueuedItem["source"], name: string, takenAt: number) {
     try {
       // Shrink before anything keeps it: a phone photo is several megabytes otherwise.
       const resized = await resizeImage(blob, { maxEdge: 1600 });
@@ -267,17 +264,13 @@ export function PhotoNotebook() {
       setProblems((current) => [...current, message]);
       toast.error(message);
     }
-  }, []);
+  }
 
-  const onFilesChosen = useCallback(
-    (files: File[]) => {
-      for (const file of files) {
-        // A file's own lastModified is when it was taken; a missing one falls back to now.
-        void queueFromBlob(file, "file", file.name, file.lastModified || Date.now());
-      }
-    },
-    [queueFromBlob],
-  );
+  function onFilesChosen(files: File[]) {
+    for (const file of files) {
+      void queueFromBlob(file, "file", file.name, fileTakenAt(file));
+    }
+  }
 
   async function saveQueued(item: QueuedItem, caption: string) {
     setSavingIds((current) => new Set(current).add(item.id));
