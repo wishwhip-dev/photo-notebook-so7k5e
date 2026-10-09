@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -14,10 +14,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CameraCapture } from "@/components/camera-capture";
 import { FileDrop } from "@/components/file-drop";
 import { addPhoto, deletePhoto, listPhotos } from "@/lib/data/photos";
 import { database, newId, type Photo } from "@/lib/db";
+import { attachStream, capturePhoto, requestCamera, stopStream } from "@/lib/camera";
 import { readAsDataUrl, resizeImage } from "@/lib/files";
 import { useIsHydrated, useStorageStatus, useStoredQuery } from "@/lib/storage/react";
 
