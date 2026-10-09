@@ -191,7 +191,7 @@ export function PhotoNotebook() {
 
   // Fired by the click on "Take photo" — never in an effect, so the request is the user gesture and
   // no remount can stop the stream it grants. Two clicks in flight collapse into one request.
-  const openCamera = useCallback(() => {
+  function openCamera() {
     if (requestingRef.current) return;
     requestingRef.current = true;
     setCameraNote("");
@@ -208,7 +208,7 @@ export function PhotoNotebook() {
         return { kind: "on", stream: result.stream, mirrored: isMirrored(result.stream, "environment") };
       });
     });
-  }, []);
+  }
 
   // One live stream: show it, and stop it when the tab hides, the camera disappears, or the visitor
   // closes the panel. It runs only when the stream changes — the island mounts with the page, when
