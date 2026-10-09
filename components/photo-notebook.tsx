@@ -44,6 +44,30 @@ function pluralPhotos(count: number): string {
   return `${count} ${count === 1 ? "photo" : "photos"}`;
 }
 
+/**
+ * The camera, owned by the island rather than by a component that mounts on the click.
+ *
+ * The request is fired from the click on "Take photo" itself — the browser's prompt is the gesture —
+ * and the granted stream sits in state here, where a StrictMode remount can never run a cleanup
+ * over it. The component tree mounts once with the page; the stream arrives later.
+ */
+type CameraState =
+  | { kind: "closed" }
+  | { kind: "starting" }
+  | { kind: "on"; stream: MediaStream; mirrored: boolean }
+  /** Refused, missing, in use or otherwise not started: the message is the panel's content. */
+  | { kind: "blocked"; message: string }
+  /** Was live, then the tab hid or the track ended. Says what happened, offers the camera again. */
+  | { kind: "stopped"; message: string };
+
+/** The selfie camera is mirrored; a camera that does not report its facing keeps the requested one. */
+function isMirrored(stream: MediaStream, requested: "user" | "environment"): boolean {
+  const reported = stream.getVideoTracks()[0]?.getSettings().facingMode;
+  if (reported === "user") return true;
+  if (reported === "environment") return false;
+  return requested === "user";
+}
+
 /** One queued photo with its own caption form, before it has been saved anywhere. */
 function QueuedPhotoCard({
   item,
