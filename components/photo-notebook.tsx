@@ -306,15 +306,74 @@ export function PhotoNotebook() {
           <p className="mt-1 mb-3 text-sm text-muted-foreground">
             Opens your camera. It stays open so you can take several in a row.
           </p>
-          <Button type="button" onClick={() => setCameraOpen((open) => !open)}>
+          <Button type="button" onClick={openCamera}>
             Take photo
           </Button>
-          {cameraOpen && (
-            <CameraCapture
-              className="mt-4"
-              photoOptions={{ maxEdge: 1600, type: "image/jpeg", quality: 0.85 }}
-              onPhoto={(photo) => void queueFromBlob(photo, "camera", "Camera photo", Date.now())}
-            />
+
+          {camera.kind !== "closed" && (
+            <div className="mt-4 space-y-3">
+              {(camera.kind === "on" || camera.kind === "starting") && (
+                <div
+                  className="relative w-full overflow-hidden rounded-lg border bg-muted"
+                  style={{ aspectRatio: "4 / 3" }}
+                >
+                  {camera.kind === "on" ? (
+                    <video
+                      ref={videoRef}
+                      autoPlay
+                      playsInline
+                      muted
+                      aria-label="Camera preview"
+                      className="absolute inset-0 h-full w-full object-cover"
+                      style={camera.mirrored ? { transform: "scaleX(-1)" } : undefined}
+                    />
+                  ) : (
+                    <p
+                      role="status"
+                      className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground"
+                    >
+                      Starting camera…
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {camera.kind === "blocked" && (
+                <p role="status" className="text-sm font-medium text-destructive">
+                  {camera.message}
+                </p>
+              )}
+              {camera.kind === "stopped" && (
+                <p role="status" className="text-sm text-muted-foreground">
+                  {camera.message}
+                </p>
+              )}
+
+              <p aria-live="polite" className="text-sm text-muted-foreground">
+                {cameraNote}
+              </p>
+
+              <div className="flex flex-wrap gap-2">
+                {camera.kind === "on" ? (
+                  <>
+                    <Button type="button" onClick={() => void takePhoto()} disabled={capturing}>
+                      Capture photo
+                    </Button>
+                    <Button type="button" variant="outline" onClick={() => setCamera({ kind: "closed" })}>
+                      Close camera
+                    </Button>
+                  </>
+                ) : camera.kind === "starting" ? (
+                  <Button type="button" variant="outline" onClick={() => setCamera({ kind: "closed" })}>
+                    Cancel
+                  </Button>
+                ) : (
+                  <Button type="button" onClick={openCamera}>
+                    Try again
+                  </Button>
+                )}
+              </div>
+            </div>
           )}
         </div>
 
