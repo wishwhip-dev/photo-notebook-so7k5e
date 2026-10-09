@@ -68,6 +68,32 @@ function isMirrored(stream: MediaStream, requested: "user" | "environment"): boo
   return requested === "user";
 }
 
+const CAMERA_PHOTO_OPTIONS = { maxEdge: 1600, type: "image/jpeg", quality: 0.85 } as const;
+
+/** When a chosen file was taken: its own timestamp, or now when it has none. Module scope, because `Date.now` is impure and this runs in event handlers only. */
+function fileTakenAt(file: File): number {
+  return file.lastModified || Date.now();
+}
+
+/**
+ * One capture from the live preview. Module scope, so the timestamp (`Date.now` is impure) and the
+ * error handling stay out of the component body. Returns the note to show under the preview: the
+ * success line, or why the capture failed.
+ */
+async function captureFromCamera(
+  video: HTMLVideoElement,
+  queue: (blob: Blob, takenAt: number) => Promise<void>,
+): Promise<string> {
+  try {
+    const photo = await capturePhoto(video, CAMERA_PHOTO_OPTIONS);
+    // The capture moment, not whenever the queue finishes resizing.
+    await queue(photo, Date.now());
+    return "Photo taken — it is queued below, ready for a caption. Take another or close the camera.";
+  } catch (error) {
+    return error instanceof Error ? error.message : "The photo could not be taken.";
+  }
+}
+
 /** One queued photo with its own caption form, before it has been saved anywhere. */
 function QueuedPhotoCard({
   item,
