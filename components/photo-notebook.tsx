@@ -151,11 +151,80 @@ export function PhotoNotebook() {
   const { data: photos, isLoading } = useStoredQuery(database, listPhotos);
   const storageStatus = useStorageStatus(database);
 
-  const [cameraOpen, setCameraOpen] = useState(false);
+  const [camera, setCamera] = useState<CameraState>({ kind: "closed" });
+  const [cameraNote, setCameraNote] = useState("");
+  const [capturing, setCapturing] = useState(false);
   const [queue, setQueue] = useState<QueuedItem[]>([]);
   const [savingIds, setSavingIds] = useState<Set<string>>(new Set());
   const [problems, setProblems] = useState<string[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
+
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const requestingRef = useRef(false);
+  const cameraStream = camera.kind === "on" ? camera.stream : null;
+
+  // Fired by the click on "Take photo" — never in an effect, so the request is the user gesture and
+  // no remount can stop the stream it grants. Two clicks in flight collapse into one request.
+  const openCamera = useCallback(() => {
+    if (requestingRef.current) return;
+    requestingRef.current = true;
+    setCameraNote("");
+    setCamera((current) => (current.kind === "on" || current.kind === "starting" ? current : { kind: "starting" }));
+    void requestCamera({ facing: "environment" }).then((result) => {
+      requestingRef.current = false;
+      setCamera((current) => {
+        // The visitor closed the panel while the request was in flight: take the camera back off.
+        if (current.kind === "closed") {
+          stopStream(result.stream);
+          return current;
+        }
+        if (result.status !== "granted") return { kind: "blocked", message: result.message };
+        return { kind: "on", stream: result.stream, mirrored: isMirrored(result.stream, "environment") };
+      });
+    });
+  }, []);
+
+  // One live stream: show it, and stop it when the tab hides, the camera disappears, or the visitor
+  // closes the panel. It runs only when the stream changes — the island mounts with the page, when
+  // there is no stream yet, so a StrictMode remount can never stop one the visitor granted.
+  useEffect(() => {
+    if (!cameraStream) return;
+    const video = videoRef.current;
+    if (video) void attachStream(video, cameraStream);
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") {
+        setCamera({ kind: "stopped", message: "Camera stopped while the tab was hidden." });
+        setCameraNote("Open the camera again to keep taking photos.");
+      }
+    };
+    const onEnded = () =>
+      setCamera({ kind: "stopped", message: "Camera stopped: it was disconnected or access was withdrawn." });
+    const track = cameraStream.getVideoTracks()[0];
+    document.addEventListener("visibilitychange", onVisibility);
+    track?.addEventListener("ended", onEnded);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      track?.removeEventListener("ended", onEnded);
+      if (video && video.srcObject === cameraStream) video.srcObject = null;
+      stopStream(cameraStream);
+    };
+  }, [cameraStream]);
+
+  async function takePhoto() {
+    const video = videoRef.current;
+    if (!video || camera.kind !== "on" || capturing) return;
+    setCapturing(true);
+    try {
+      const photo = await capturePhoto(video, { maxEdge: 1600, type: "image/jpeg", quality: 0.85 });
+      await queueFromBlob(photo, "camera", "Camera photo", Date.now());
+      // The camera stays on: several photos in a row is the point of the panel.
+      setCameraNote("Photo taken — it is queued below, ready for a caption. Take another or close the camera.");
+    } catch (error) {
+      setCameraNote(error instanceof Error ? error.message : "The photo could not be taken.");
+    } finally {
+      setCapturing(false);
+    }
+  }
 
   const saved = photos ?? [];
   const active = activeId === null ? undefined : saved.find((photo) => photo.id === activeId);
