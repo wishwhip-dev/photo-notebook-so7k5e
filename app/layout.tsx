@@ -3,8 +3,9 @@ import "./globals.css";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
-  title: "New application",
-  description: "Created by the Assistant developer",
+  title: "Photo notebook",
+  description:
+    "Take or choose photos, caption them, and keep them in your browser — saved on this device only.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
