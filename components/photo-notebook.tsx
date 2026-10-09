@@ -375,7 +375,7 @@ export function PhotoNotebook() {
               <div className="flex flex-wrap gap-2">
                 {camera.kind === "on" ? (
                   <>
-                    <Button type="button" onClick={() => void takePhoto()} disabled={capturing}>
+                    <Button type="button" onClick={captureFromPreview} disabled={capturing}>
                       Capture photo
                     </Button>
                     <Button type="button" variant="outline" onClick={() => setCamera({ kind: "closed" })}>
