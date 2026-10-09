@@ -69,18 +69,21 @@ export function CameraCapture({ onPhoto, photoOptions, className }: CameraCaptur
     };
   }, []);
 
-  const open = useCallback(async () => {
-    const result = await requestCamera({ facing: "environment" });
-    if (!aliveRef.current) {
-      stopStream(result.stream);
-      return;
-    }
-    if (result.status !== "granted") {
-      setState({ kind: "failed", message: result.message });
-      return;
-    }
-    setNote("");
-    setState({ kind: "on", stream: result.stream, mirrored: isMirrored(result.stream, "environment") });
+  // Written with an explicit `.then` rather than async/await so every state change sits inside the
+  // promise callback: nothing here runs synchronously in the effect body or in the click handler.
+  const open = useCallback(() => {
+    return requestCamera({ facing: "environment" }).then((result) => {
+      if (!aliveRef.current) {
+        stopStream(result.stream);
+        return;
+      }
+      if (result.status !== "granted") {
+        setState({ kind: "failed", message: result.message });
+        return;
+      }
+      setNote("");
+      setState({ kind: "on", stream: result.stream, mirrored: isMirrored(result.stream, "environment") });
+    });
   }, []);
 
   // Opened when the component mounts, which is the moment after the click on "Take photo". Every
